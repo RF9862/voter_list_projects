@@ -1,0 +1,5 @@
+pkill -f flask
+pip install -r requirements.txt
+nohup flask run --host=0.0.0.0 --port=3030 &
+
+server requirments need GPU, RAM 16 GB

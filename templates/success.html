@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Success</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <style>
+        .modal-content {
+            border: none;
+            border-radius: 0;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .modal-title {
+            font-weight: bold;
+            font-size: 30px;
+            text-transform: uppercase;
+            color: #007bff;
+            text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .modal-body {
+            text-align: center;
+            padding-top: 0;
+        }
+
+        .modal-body p {
+            font-size: 20px;
+            color: #343a40;
+            text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .modal-footer {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal fade" id="successModal" tabindex="-1" role="dialog"  data-backdrop="static" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="successModalLabel">Success</h5>
+                    <a href="/" type="button" class="close" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </a>
+                </div>
+                <div class="modal-body">
+                    <p>Your file was saved successfully.</p>
+                    <a href="{{ download_url }}">Download XLSX</a>
+                </div>
+                <div class="modal-footer">
+                    <!-- <a type="button" class="btn btn-secondary" data-dismiss="modal" href="{{ download_url }}">Close</a> -->
+                    <a href="/" class="btn btn-secondary">Close</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#successModal').modal('show');
+        });
+    </script>
+</body>
+</html>
+

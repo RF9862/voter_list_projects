@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload PDF File</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 50px;
+            width: 500px;
+            max-width: 90%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Upload a PDF || ZIP file</h1>
+        <br><br>
+        <form method="POST" action="/upload" enctype="multipart/form-data" onsubmit="showLoadingButton()">
+            <div class="form-group">
+                <label for="file">Select PDF File:</label>
+                <input type="file" class="form-control-file" name="file" accept=".pdf" required>
+            </div>
+            <div class="form-group">
+                <label for="language">Language:</label>
+                <select class="form-control" name="language" id="language" required>
+                    <option value="MARATHI">MARATHI</option>
+                    <option value="ENGLISH">ENGLISH</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="format">Format:</label>
+                <select class="form-control" name="format" id="format" required>
+                    <option value="FORMAT 1">Box wise</option>
+                    <option value="FORMAT 2">Row wise</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submitBtn">Upload</button>
+            <button type="button" class="btn btn-primary d-none" id="loadingBtn" disabled>
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Processing...
+            </button>
+        </form>
+    </div>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+    <script>
+        function showLoadingButton() {
+            document.getElementById("submitBtn").classList.add("d-none");
+            document.getElementById("loadingBtn").classList.remove("d-none");
+        }
+    </script>
+</body>
+</html>
+
