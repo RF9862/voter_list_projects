@@ -509,11 +509,12 @@ class do_marathi:
             rects = getRectangle(self.img) # get every elements region
             return self.getFromImg(rects)
 
-    def parse_doc(self):
+    def parse_doc(self, socketio, username):
         '''
         In a document, main process is done for all pages 
         '''
         # Split and convert pages to images
+        socketio.emit('process', {'data': f"Spliting PDF into images...", 'username': username})
         pages = split_pages(self.full_path)
         # self.indexFromFile()
         if pages == "01":
@@ -540,6 +541,7 @@ class do_marathi:
                     
                     if idx == 0: result_1 = result
                     else: result_2 += result
+                    socketio.emit('process', {'data': f"Processing {str(self.page_num)} of {len(self.digit_doc)}", 'username': username})  
                 
             except Exception as e:
                 print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")

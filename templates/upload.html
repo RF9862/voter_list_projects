@@ -12,6 +12,10 @@
             width: 500px;
             max-width: 90%;
         }
+        .proc {
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
@@ -37,20 +41,62 @@
                     <option value="FORMAT 2">Row wise</option>
                 </select>
             </div>
-
-            <button type="submit" class="btn btn-primary" id="submitBtn">Upload</button>
-            <button type="button" class="btn btn-primary d-none" id="loadingBtn" disabled>
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                Processing...
-            </button>
+            <div class="proc">
+                <button type="submit" class="btn btn-primary" id="submitBtn">Upload</button>
+                <button type="button" class="btn btn-primary d-none" id="loadingBtn" disabled>
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Processing...
+                </button>
+                <div id="log" style="margin-block:auto">No Connected</div>
+            </div>
         </form>
     </div>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js" integrity="sha512-aMGMvNYu8Ue4G+fHa359jcPb1u+ytAF+P2SCb+PxrjCdO3n3ZTxJ30zuH39rimUggmTwmh2u7wvQsDTHESnmfQ==" crossorigin="anonymous"></script>
+
     <script>
         function showLoadingButton() {
             document.getElementById("submitBtn").classList.add("d-none");
             document.getElementById("loadingBtn").classList.remove("d-none");
+            document.getElementById("log").innerHTML = "Uploading file ..."
         }
+
+        const d = new Date();
+        let user = d.getTime().toString();
+        sessionStorage.setItem('username', user);      
+        var username = sessionStorage.getItem('username');  
+        fetch('/set_sess', {
+            method: 'POST',
+            credentials: 'same-origin',  // Include this line if you want to send cookies along with the request
+            headers: {
+                'Content-Type': 'application/json'
+                },
+            body: JSON.stringify({ username: username })  // Convert the data to JSON format
+        })
+        .then(response => response.text())
+        .then(data => {
+            console.log(data, "test"); // Display the response from the Flask endpoint
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });     
+        var socket = io();
+        // Event handler for new connections.
+        // The callback function is invoked when a connection with the
+        // server is established.
+        socket.on('connect', function() {
+            socket.emit('my_event', {data: username});
+        });    
+        socket.on('my_response', function(msg, cb) {
+            document.getElementById("log").innerHTML = msg.data
+                });
+        socket.on('process', function(msg) {
+            if (msg.username == username) {
+                console.log(msg.username, "kkkkk")
+                document.getElementById("log").innerHTML = msg.data
+            }
+        })      
+           
     </script>
 </body>
 </html>
