@@ -69,6 +69,7 @@ def process_pdf(filename , file_path, language, format):
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    
     if 'file' not in request.files:
         return 'No file uploaded'
 
@@ -79,72 +80,75 @@ def upload():
 
     if not allowed_file(file.filename):
         return 'Invalid file extension'
+    try:
+        filename = secure_filename(file.filename)
+        filename = re.sub("PDF","pdf",filename)
+        if filename.endswith('.zip'):
+            file_path = os.path.join("upload", filename)
+            file.save(file_path)
+            os.system("rm -rf RESULT")
+            os.mkdir("RESULT")
+            # Extract the zip file to a temporary directory
+            with tempfile.TemporaryDirectory() as temp_dir:
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
 
-    filename = secure_filename(file.filename)
-    filename = re.sub("PDF","pdf",filename)
-    if filename.endswith('.zip'):
-        file_path = os.path.join("upload", filename)
-        file.save(file_path)
-        os.system("rm -rf RESULT")
-        os.mkdir("RESULT")
-        # Extract the zip file to a temporary directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
-
-            # Process each PDF file in the temporary directory
-            for root, dirs, files in os.walk(temp_dir):
-                for file in files:
-                    if file.lower().endswith('.pdf'):
-                        pdf_path = os.path.join(root, file)
-                        file_name = os.path.splitext(file)[0]
-
-                        language = request.form.get('language')
-                        format = request.form.get('format')
-                        place = request.form.get('place')
-
-                        # Process the PDF file
-                        ALL_RESULTS = process_pdf(file_name, pdf_path, language, format)
-
-                        json_file_path = os.path.join("RESULT", file_name + '.json')
-                        with open(json_file_path, 'w') as json_file:
-                            json.dump(ALL_RESULTS, json_file)
-
-            # Create a zip file containing the JSON files
-            zip_filename = "OUT_"+filename
-            zip_file_path = os.path.join('TEMP', zip_filename)
-            with zipfile.ZipFile(zip_file_path, 'w') as zip_file:
-                for root, dirs, files in os.walk('RESULT'):
+                # Process each PDF file in the temporary directory
+                for root, dirs, files in os.walk(temp_dir):
                     for file in files:
-                        file_path = os.path.join(root, file)
-                        zip_file.write(file_path, os.path.basename(file_path))
+                        if file.lower().endswith('.pdf'):
+                            pdf_path = os.path.join(root, file)
+                            file_name = os.path.splitext(file)[0]
 
-            download_url = f"/download/TEMP/{zip_filename}"
+                            language = request.form.get('language')
+                            format = request.form.get('format')
+                            place = request.form.get('place')
 
-    else:
-        user_file = str(int(time.time()*100000))
-        file_path = os.path.join("upload", '_'.join([user_file, filename]))
-        file.save(file_path)
-        # Process the single PDF file
-        language = request.form.get('language')
-        format = request.form.get('format')
-        place = request.form.get('place')
+                            # Process the PDF file
+                            ALL_RESULTS = process_pdf(file_name, pdf_path, language, format)
 
-        # Process the PDF file
-        ALL_RESULTS = process_pdf(filename, file_path, language, format)
+                            json_file_path = os.path.join("RESULT", file_name + '.json')
+                            with open(json_file_path, 'w') as json_file:
+                                json.dump(ALL_RESULTS, json_file)
 
-        json_filename = os.path.splitext(filename)[0] + '.json'
-        json_file_path = os.path.join("PDF", json_filename)
-        # with open(json_file_path, 'w', encoding='utf-8') as json_file:
-        #     json.dump(ALL_RESULTS, json_file, indent='\t', ensure_ascii=False)
-        xlsx_filename = os.path.splitext(filename)[0]+'.xlsx'
-        xlsx_file_path = os.path.join("PDF", xlsx_filename)
-        post_processing(ALL_RESULTS, xlsx_file_path)
-        os.remove(file_path)
+                # Create a zip file containing the JSON files
+                zip_filename = "OUT_"+filename
+                zip_file_path = os.path.join('TEMP', zip_filename)
+                with zipfile.ZipFile(zip_file_path, 'w') as zip_file:
+                    for root, dirs, files in os.walk('RESULT'):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            zip_file.write(file_path, os.path.basename(file_path))
 
-        download_url = f"/download/{xlsx_filename}"
+                download_url = f"/download/TEMP/{zip_filename}"
 
-    return render_template('success.html', download_url=download_url)
+        else:
+            user_file = str(int(time.time()*100000))
+            file_path = os.path.join("upload", '_'.join([user_file, filename]))
+            file.save(file_path)
+            # Process the single PDF file
+            language = request.form.get('language')
+            format = request.form.get('format')
+            place = request.form.get('place')
+
+            # Process the PDF file
+            ALL_RESULTS = process_pdf(filename, file_path, language, format)
+
+            json_filename = os.path.splitext(filename)[0] + '.json'
+            json_file_path = os.path.join("PDF", json_filename)
+            # with open(json_file_path, 'w', encoding='utf-8') as json_file:
+            #     json.dump(ALL_RESULTS, json_file, indent='\t', ensure_ascii=False)
+            xlsx_filename = os.path.splitext(filename)[0]+'.xlsx'
+            xlsx_file_path = os.path.join("PDF", xlsx_filename)
+            post_processing(ALL_RESULTS, xlsx_file_path)
+            os.remove(file_path)
+
+            download_url = f"/download/{xlsx_filename}"
+
+        return render_template('success.html', download_url=download_url)
+    except:
+        socketio.emit('process', {'data': f"Error Encountered In Processing", 'username': session.get('username')})
+        return render_template('upload.html')
 
 @app.route('/')
 @app.route('/home')
