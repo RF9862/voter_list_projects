@@ -5,8 +5,9 @@ import numpy as np
 import re, os
 import pytesseract
 from helper import split_pages, subset, getting_textdata, getRectangle, getTextAndCoorFromPaddle
+from dotenv import load_dotenv
 
-# dotenv.load_dotenv()
+load_dotenv()
 # Global variables
 
 class do_marathi:

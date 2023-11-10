@@ -6,6 +6,9 @@ import pytesseract
 from pytesseract import Output
 import os
 from paddleocr import PaddleOCR
+from dotenv import load_dotenv
+load_dotenv()
+
 Pocr = PaddleOCR(use_angle_cls=True)
 
 tesseract_Path = os.getenv("TESSERACT_PATH")
