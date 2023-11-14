@@ -6,6 +6,7 @@ import re, os
 import pytesseract
 from helper import split_pages, subset, getting_textdata, getRectangle, getTextAndCoorFromPaddle
 from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 # Global variables
@@ -546,6 +547,8 @@ class do_marathi:
                 
             except Exception as e:
                 print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")
+                
+                print("     Error=%s,\n     File=%s,\n     L=%s\n" % (str(e), traceback.extract_tb(exc_tb)[-1][0], traceback.extract_tb(exc_tb)[-1][1]))
         print(f"    Completed parsing {self.full_path} with no errors, ...........OK")
         result_1['DETAILS'] = result_2
         return result_1
