@@ -12,6 +12,7 @@ requests
 python-dotenv
 certifi
 python-dateutil
+#eventlet
 # tesseract: latest version
 # tesseract weight files: https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata
-			https://github.com/tesseract-ocr/tessdata/raw/main/mar.traineddata
+#			https://github.com/tesseract-ocr/tessdata/raw/main/mar.traineddata

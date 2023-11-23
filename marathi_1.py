@@ -291,13 +291,14 @@ class do_marathi:
                 final_json["part_number"] = re.findall('\d+', temp_text)[0]
                 break
         town_check, tehsil_check, district_check, pin_check, address_check = True, True, True, True, True
+        strp_chars = "|^#;$`'-_=*\/‘¢[®°]"
         for i, tex in enumerate(text):
             if town_check and ('मूळ शहर' in tex or 'नगर' in tex):
                 temp_text = ''
                 for k in range(1,5):
                     if Cx_list[i+k] < Cx_list[i]+50:
                         if len(temp_text)>0: 
-                            final_json["main_town"] = temp_text
+                            final_json["main_town"] = temp_text.strip(strp_chars)
                         town_check = False
                         break
                     else:
@@ -307,7 +308,7 @@ class do_marathi:
                 for k in range(1,5):
                     if Cx_list[i+k] < Cx_list[i]+50:
                         if len(temp_text)>0: 
-                            final_json["tehsil"] = temp_text
+                            final_json["tehsil"] = temp_text.strip(strp_chars)
                         tehsil_check = False
                         break
                     else:
@@ -317,7 +318,7 @@ class do_marathi:
                 for k in range(1,5):
                     if Cx_list[i+k] < Cx_list[i]+50:
                         if len(temp_text)>0: 
-                            final_json["district"] = temp_text
+                            final_json["district"] = temp_text.strip(strp_chars)
                         district_check = False
                         break
                     else:
@@ -367,14 +368,16 @@ class do_marathi:
         return page_results
             
     def getFromImg(self, rects):
-        custom_config =  "--oem 3 --psm 6"
+        custom_config =  "--oem 3 --psm 11"
         results = []
         for rect in rects:
             y,x,H,W = rect
-            cropped_image = self.img[y:y+H, x:x+W]
+            cropped_image = self.img[y:y+H, x:x+W]    
+            # gray = cv2.cvtColor(cropped_image,cv2.COLOR_BGR2GRAY)
+            # bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]             
             text, _, _, w, h, accu, xc, yc= getting_textdata(cropped_image, custom_config, 1, 0, lang='mar', ths=0) 
             CyCpy = yc
-            CyUnique, _ = subset(np.sort(CyCpy), 15, 'medi')
+            CyUnique, _ = subset(np.sort(CyCpy), 12, 'medi')
             yc = [CyUnique[np.argmin(abs(np.array(CyUnique)-v))] for v in yc]
             yc, xc, text = zip(*sorted(zip(yc, xc, text)))
             new = []
@@ -414,7 +417,7 @@ class do_marathi:
                         break  
                 if voterName != '': break
             try:
-                id_ind = n_ind-1
+                id_ind = 0
                 if f_ind - n_ind == 2:
                     voterName += ' '.join([v[0] for v in new[n_ind+1] if v[1]>0.3*W]).strip()
                     house_ind = n_ind + 3
@@ -451,7 +454,105 @@ class do_marathi:
 
             results.append({'id':voterIdNo, 'name':voterName, 'father_name':fatherName, 'house_no':T_name, 'PageNumber':self.page_num})
         return results
+    def getFromImgByPaddle(self, rects):
+        custom_config =  "--oem 3 --psm 11"
+        results = []
+        for rect in rects:
+            y,x,H,W = rect
+            cropped_image = self.img[y:y+H, x:x+W]
+            Cy_list, Cx_list, text = getTextAndCoorFromPaddle(cropped_image, lang='mar')
+            Cy_list, Cx_list, text = list(Cy_list), list(Cx_list), list(text)
+            CyCpy = Cy_list.copy()
+            CyUnique, _ = subset(np.sort(CyCpy), 15, 'medi')
 
+            Cy_list = [CyUnique[np.argmin(abs(np.array(CyUnique)-v))] for v in Cy_list]
+            yc, xc, text = zip(*sorted(zip(Cy_list, Cx_list, text)))
+            new = []
+            try: ref_y = yc[0]
+            except: pass
+            row = []
+            ka = 0.9
+            for i, tex in enumerate(text):
+                if xc[i] > ka*W: continue
+                if yc[i] == ref_y: row.append([tex, xc[i], yc[i]])
+                else:
+                    ref_y = yc[i]
+                    new.append(row)
+                    row = [[tex, xc[i], yc[i]]]
+                    ka = 0.75
+            new.append(row)
+            
+            # new = [v for v in new if len(v) > 1]
+
+            #########
+            strp_chars = "|^#;$`-_=*\/‘¢[®°]:."
+            voterIdNo, fatherName, voterName, T_name = '', '', '', ''
+            for i, row in enumerate(new):
+                ele_text = ' '.join([v[0] for v in row])
+                if 'वडीलांचे'in ele_text or 'बडीलांचे' in ele_text or 'पतीचे' in ele_text or 'आईचे' in ele_text or 'वडलांचे' in ele_text or 'वडोलांचे' in ele_text:
+                    f_ind = i
+                    if ":" in ele_text:
+                        fatherName = ele_text.split(":")[-1]
+                    elif "नाव" in ele_text: 
+                        fatherName = ele_text.split("नाव")[-1]
+                    else:
+                        fatherName =' '.join(ele_text.split()[2:])
+                    fatherName = fatherName.strip(strp_chars).strip() 
+                    break
+            for i, row in enumerate(new):
+                    ele_text = ' '.join([v[0] for v in row])
+                    if 'मतदाराचे' in ele_text or 'नाव' in ele_text:
+                        n_ind = i
+                        if ":" in ele_text:
+                            voterName = ele_text.split(":")[-1]
+                        elif "नाव" in ele_text: 
+                            voterName = ele_text.split("नाव")[-1]
+                        else:
+                            voterName = ' '.join(ele_text.split()[2:])
+                        voterName = voterName.strip(strp_chars).strip() 
+                        break
+            try:
+                id_ind = 0
+                if f_ind - n_ind == 2:
+                    voterName += ' ' + ' '.join([v[0] for v in new[n_ind+1] if v[0] != 'नाव']).strip()
+                    house_ind = n_ind + 3
+                else:
+                    house_ind = n_ind + 2
+            except:
+                id_ind = 0
+                house_ind = 3
+
+            IdRow = new[id_ind]
+            for ele in IdRow:
+                if len(ele[0]) > 3: Id_xc, Id_yc = ele[1], ele[2]
+            try: 
+                IDImg = cropped_image[max(Id_yc-14, 0):Id_yc+15, max(Id_xc-120, 0):Id_xc+120]
+                txt = [v for v in pytesseract.image_to_string(IDImg, config='--psm 6').strip().split() if len(v)>3]
+                voterIdNo = txt[0] if len(txt) > 0 else "" 
+            except: pass
+
+            # House No
+            for i, row in enumerate(new):
+                for ele in row:
+                    if 'घर' in ele[0]:
+                        if len(row) > 3: T_name = ' '.join([v[0] for v in row[1:]])
+                        else:
+                            houseImg = cropped_image[max(ele[2]-14, 0):ele[2]+14, 10:int(0.5*W)]
+                            T_name = pytesseract.image_to_string(houseImg, lang='mar+eng', config='--psm 6').strip()
+                            T_name = T_name.replace('घर', '')
+                             
+                        T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
+                        T_name = T_name.strip(strp_chars).strip()
+                        break
+                if T_name != '': break
+            if T_name == '':
+                houseRow = new[house_ind]
+                houseImg = cropped_image[max(houseRow[0][2]-14, 0):houseRow[0][2]+14, int(0.3*W):int(0.5*W)]
+                T_name = pytesseract.image_to_string(houseImg, config='--psm 6').strip()
+                T_name = T_name.strip(strp_chars).strip()
+
+            results.append({'id':voterIdNo, 'name':voterName, 'father_name':fatherName, 'house_no':T_name, 'PageNumber':self.page_num})
+        return results
     def old_getFromDigital(self):
         
         results = self.process_page()
@@ -509,7 +610,7 @@ class do_marathi:
                 return self.get_head_page_scanned_paddle()
         else:
             rects = getRectangle(self.img) # get every elements region
-            return self.getFromImg(rects)
+            return self.getFromImgByPaddle(rects)
 
     def parse_doc(self, socketio, username):
         '''
@@ -548,7 +649,7 @@ class do_marathi:
             except Exception as e:
                 print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")
                 
-                print("     Error=%s,\n     File=%s,\n     L=%s\n" % (str(e), traceback.extract_tb(exc_tb)[-1][0], traceback.extract_tb(exc_tb)[-1][1]))
+                # print("     Error=%s,\n     File=%s,\n     L=%s\n" % (str(e), traceback.extract_tb(exc_tb)[-1][0], traceback.extract_tb(exc_tb)[-1][1]))
         print(f"    Completed parsing {self.full_path} with no errors, ...........OK")
         result_1['DETAILS'] = result_2
         return result_1

@@ -119,10 +119,10 @@ def getting_textdata(img, config, zoom_fac, split_val, lang='eng', ths=30):
     split_val: factor to consider for coordinate of texts when image is splited into two parts
     '''
 
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1] 
+    # gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    # bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1] 
     pytesseract.pytesseract.tesseract_cmd = tesseract_Path
-    d = pytesseract.image_to_data(bin_img, output_type=Output.DICT, lang=lang, config=config)
+    d = pytesseract.image_to_data(img, output_type=Output.DICT, lang=lang, config=config)
     text_ori = d['text']
     left_coor, top_coor, wid, hei, conf = d['left'], d['top'], d['width'], d['height'], d['conf']        
     ### removing None element from text ###
