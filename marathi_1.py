@@ -291,7 +291,7 @@ class do_marathi:
                 final_json["part_number"] = re.findall('\d+', temp_text)[0]
                 break
         town_check, tehsil_check, district_check, pin_check, address_check = True, True, True, True, True
-        strp_chars = "|^#;$`'-_=*\/‘¢[®°]"
+        strp_chars = "|^#;:$`'-_=*\/‘¢[®°]."
         for i, tex in enumerate(text):
             if town_check and ('मूळ शहर' in tex or 'नगर' in tex):
                 temp_text = ''
@@ -489,7 +489,7 @@ class do_marathi:
             voterIdNo, fatherName, voterName, T_name = '', '', '', ''
             for i, row in enumerate(new):
                 ele_text = ' '.join([v[0] for v in row])
-                if 'वडीलांचे'in ele_text or 'बडीलांचे' in ele_text or 'पतीचे' in ele_text or 'आईचे' in ele_text or 'वडलांचे' in ele_text or 'वडोलांचे' in ele_text:
+                if 'वडीलांचे'in ele_text or 'बडीलांचे' in ele_text or 'पतीचे' in ele_text or 'आईचे' in ele_text or 'वडलांचे' in ele_text or 'वडोलांचे' in ele_text or 'इतरांचे ' in ele_text:
                     f_ind = i
                     if ":" in ele_text:
                         fatherName = ele_text.split(":")[-1]
@@ -532,24 +532,31 @@ class do_marathi:
             except: pass
 
             # House No
-            for i, row in enumerate(new):
-                for ele in row:
-                    if 'घर' in ele[0]:
-                        if len(row) > 3: T_name = ' '.join([v[0] for v in row[1:]])
-                        else:
-                            houseImg = cropped_image[max(ele[2]-14, 0):ele[2]+14, 10:int(0.5*W)]
-                            T_name = pytesseract.image_to_string(houseImg, lang='mar+eng', config='--psm 6').strip()
-                            T_name = T_name.replace('घर', '')
+            # for i, row in enumerate(new):
+            #     for ele in row:
+            #         if 'घर' in ele[0]:
+            #             if len(row) > 3: T_name = ' '.join([v[0] for v in row[1:]])
+            #             else:
+            #                 houseImg = cropped_image[max(ele[2]-14, 0):ele[2]+14, 10:int(0.5*W)]
+            #                 T_name = pytesseract.image_to_string(houseImg, lang='mar+eng', config='--psm 6').strip()
+            #                 T_name = T_name.replace('घर', '')
                              
-                        T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
-                        T_name = T_name.strip(strp_chars).strip()
-                        break
-                if T_name != '': break
+            #             T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
+            #             T_name = T_name.strip(strp_chars).strip()
+            #             break
+            #     if T_name != '': break
             if T_name == '':
                 houseRow = new[house_ind]
-                houseImg = cropped_image[max(houseRow[0][2]-14, 0):houseRow[0][2]+14, int(0.3*W):int(0.5*W)]
-                T_name = pytesseract.image_to_string(houseImg, config='--psm 6').strip()
-                T_name = T_name.strip(strp_chars).strip()
+                ele = [v[1] for v in houseRow]
+                if sum(ele)/len(ele)/W > 0.3: T_name = ' '.join([v[0] for v in houseRow])
+                else:
+                    houseImg = cropped_image[max(houseRow[0][2]-16, 0):houseRow[0][2]+16, 10:int(0.5*W)]
+                    T_name = pytesseract.image_to_string(houseImg, lang = 'mar+eng', config='--psm 6').strip()
+                    
+                if T_name != '':
+                    T_name = T_name.replace('घर', '')
+                    T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
+                    T_name = T_name.strip(strp_chars).strip()
 
             results.append({'id':voterIdNo, 'name':voterName, 'father_name':fatherName, 'house_no':T_name, 'PageNumber':self.page_num})
         return results

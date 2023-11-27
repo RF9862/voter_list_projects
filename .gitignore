@@ -3,5 +3,6 @@ build
 dist
 data
 venv
+upload
 
 
