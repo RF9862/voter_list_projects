@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, send_file, session
+from flask import Flask, request, render_template, send_file, session, jsonify
 from werkzeug.utils import secure_filename
 from english_format_1 import do_english
 from english_format_2 import do_english_format2
@@ -154,7 +154,10 @@ def upload():
 @app.route('/home')
 def index():
     return render_template('upload.html')
-
+@app.route('/stop', methods=['GET'])
+def stop():
+    running = False
+    return jsonify({'message': 'Stopping server...'})
 @socketio.event
 def my_event(message):
     session['receive_count'] = session.get('receive_count', 0) + 1
@@ -169,4 +172,5 @@ def disconnect():
 if __name__ == '__main__':
     # from waitress import serve
     # serve(app, host="0.0.0.0", port=5000)
-    app.run("0.0.0.0", port=3126)
+    PORT = int(os.getenv("PORT"))
+    app.run("0.0.0.0", port=PORT)

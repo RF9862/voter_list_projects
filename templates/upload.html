@@ -60,7 +60,13 @@
             document.getElementById("loadingBtn").classList.remove("d-none");
             document.getElementById("log").innerHTML = "Uploading file ..."
         }
-
+        window.onbeforeunload = () => fetch('/stop', 
+            {
+                method: 'GET'
+            }).then(response => response.text())
+        .then(data => { console.log(data, "stop_test"); })
+        .catch(error => { console.error('Error:', error); });
+        
         const d = new Date();
         let user = d.getTime().toString();
         sessionStorage.setItem('username', user);      
@@ -80,6 +86,7 @@
         .catch(error => {
             console.error('Error:', error);
         });     
+     
         var socket = io();
         // Event handler for new connections.
         // The callback function is invoked when a connection with the

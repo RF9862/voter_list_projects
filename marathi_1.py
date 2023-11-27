@@ -470,96 +470,139 @@ class do_marathi:
             new = []
             try: ref_y = yc[0]
             except: pass
-            row = []
-            ka = 0.9
+
+            ka, tex_v = 0.9, ""
             for i, tex in enumerate(text):
                 if xc[i] > ka*W: continue
-                if yc[i] == ref_y: row.append([tex, xc[i], yc[i]])
+                if yc[i] == ref_y: tex_v += ' ' + tex
                 else:
+                    new.append([tex_v, ref_y])
                     ref_y = yc[i]
-                    new.append(row)
-                    row = [[tex, xc[i], yc[i]]]
+                    tex_v = tex
                     ka = 0.75
-            new.append(row)
+            new.append([tex_v, ref_y])
             
             # new = [v for v in new if len(v) > 1]
 
             #########
-            strp_chars = "|^#;$`-_=*\/‘¢[®°]:."
+            strp_chars = "|^#;$`-_~=*\/‘¢[®°]:()&."
             voterIdNo, fatherName, voterName, T_name = '', '', '', ''
-            for i, row in enumerate(new):
-                ele_text = ' '.join([v[0] for v in row])
-                if 'वडीलांचे'in ele_text or 'बडीलांचे' in ele_text or 'पतीचे' in ele_text or 'आईचे' in ele_text or 'वडलांचे' in ele_text or 'वडोलांचे' in ele_text or 'इतरांचे ' in ele_text:
-                    f_ind = i
-                    if ":" in ele_text:
-                        fatherName = ele_text.split(":")[-1]
-                    elif "नाव" in ele_text: 
-                        fatherName = ele_text.split("नाव")[-1]
-                    else:
-                        fatherName =' '.join(ele_text.split()[2:])
-                    fatherName = fatherName.strip(strp_chars).strip() 
-                    break
-            for i, row in enumerate(new):
-                    ele_text = ' '.join([v[0] for v in row])
-                    if 'मतदाराचे' in ele_text or 'नाव' in ele_text:
-                        n_ind = i
-                        if ":" in ele_text:
-                            voterName = ele_text.split(":")[-1]
-                        elif "नाव" in ele_text: 
-                            voterName = ele_text.split("नाव")[-1]
-                        else:
-                            voterName = ' '.join(ele_text.split()[2:])
-                        voterName = voterName.strip(strp_chars).strip() 
-                        break
+            if len(new) == 6:
+                id_ind, n_ind, f_ind, house_ind = 0, 1, 3, 4
+            elif len(new) == 5: 
+                id_ind, n_ind, f_ind, house_ind = 0, 1, 2, 3
+            else: 
+                results.append({'id':voterIdNo, 'name':voterName, 'father_name':fatherName, 'house_no':T_name, 'PageNumber':self.page_num})
+                continue
             try:
-                id_ind = 0
-                if f_ind - n_ind == 2:
-                    voterName += ' ' + ' '.join([v[0] for v in new[n_ind+1] if v[0] != 'नाव']).strip()
-                    house_ind = n_ind + 3
-                else:
-                    house_ind = n_ind + 2
-            except:
-                id_ind = 0
-                house_ind = 3
-
-            IdRow = new[id_ind]
-            for ele in IdRow:
-                if len(ele[0]) > 3: Id_xc, Id_yc = ele[1], ele[2]
-            try: 
-                IDImg = cropped_image[max(Id_yc-14, 0):Id_yc+15, max(Id_xc-120, 0):Id_xc+120]
+                Id_yc = new[id_ind][1]
+                IDImg = cropped_image[max(Id_yc-14, 0):Id_yc+15, 130:W-7]
                 txt = [v for v in pytesseract.image_to_string(IDImg, config='--psm 6').strip().split() if len(v)>3]
                 voterIdNo = txt[0] if len(txt) > 0 else "" 
-            except: pass
-
-            # House No
-            # for i, row in enumerate(new):
-            #     for ele in row:
-            #         if 'घर' in ele[0]:
-            #             if len(row) > 3: T_name = ' '.join([v[0] for v in row[1:]])
-            #             else:
-            #                 houseImg = cropped_image[max(ele[2]-14, 0):ele[2]+14, 10:int(0.5*W)]
-            #                 T_name = pytesseract.image_to_string(houseImg, lang='mar+eng', config='--psm 6').strip()
-            #                 T_name = T_name.replace('घर', '')
-                             
-            #             T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
-            #             T_name = T_name.strip(strp_chars).strip()
-            #             break
-            #     if T_name != '': break
-            if T_name == '':
-                houseRow = new[house_ind]
-                ele = [v[1] for v in houseRow]
-                if sum(ele)/len(ele)/W > 0.3: T_name = ' '.join([v[0] for v in houseRow])
+            except: pass  
+            try:
+                n_row = new[n_ind][0]
+                if ":" in n_row:
+                    voterName = n_row.split(":")[-1]
+                elif "नाव" in n_row: 
+                    voterName = n_row.split("नाव")[-1]
+                elif "नांव" in n_row: 
+                    voterName = n_row.split("नांव")[-1]                    
                 else:
-                    houseImg = cropped_image[max(houseRow[0][2]-16, 0):houseRow[0][2]+16, 10:int(0.5*W)]
-                    T_name = pytesseract.image_to_string(houseImg, lang = 'mar+eng', config='--psm 6').strip()
+                    voterName = ' '.join(n_row.split()[2:])
+                if f_ind == 3:
+                    voterName += ' ' + ' '.join([v[0] for v in new[n_ind+1] if v[0] != 'नाव']).strip()
+            except: pass  
+            try:
+                n_row = new[f_ind][0]
+                if ":" in n_row:
+                    fatherName = n_row.split(":")[-1]
+                elif "नाव" in n_row: 
+                    fatherName = n_row.split("नाव")[-1]
+                elif "नांव" in n_row: 
+                    fatherName = n_row.split("नांव")[-1]                      
+                else:
+                    fatherName = ' '.join(n_row.split()[2:])
+            except: pass                                    
+
+            # for i, row in enumerate(new):
+            #     ele_text = ' '.join([v[0] for v in row])
+            #     if 'वडीलांचे'in ele_text or 'बडीलांचे' in ele_text or 'पतीचे' in ele_text or 'आईचे' in ele_text or 'वडलांचे' in ele_text or 'वडोलांचे' in ele_text or 'इतरांचे ' in ele_text:
+            #         f_ind = i
+            #         if ":" in ele_text:
+            #             fatherName = ele_text.split(":")[-1]
+            #         elif "नाव" in ele_text: 
+            #             fatherName = ele_text.split("नाव")[-1]
+            #         else:
+            #             fatherName =' '.join(ele_text.split()[2:])
+            #         fatherName = fatherName.strip(strp_chars).strip() 
+            #         break
+            # for i, row in enumerate(new):
+            #         ele_text = ' '.join([v[0] for v in row])
+            #         if 'मतदाराचे' in ele_text or 'नाव' in ele_text:
+            #             n_ind = i
+            #             if ":" in ele_text:
+            #                 voterName = ele_text.split(":")[-1]
+            #             elif "नाव" in ele_text: 
+            #                 voterName = ele_text.split("नाव")[-1]
+            #             else:
+            #                 voterName = ' '.join(ele_text.split()[2:])
+            #             voterName = voterName.strip(strp_chars).strip() 
+            #             break
+            # try:
+            #     id_ind = 0
+            #     if f_ind - n_ind == 2:
+            #         voterName += ' ' + ' '.join([v[0] for v in new[n_ind+1] if v[0] != 'नाव']).strip()
+            #         house_ind = n_ind + 3
+            #     else:
+            #         house_ind = n_ind + 2
+            # except:
+            #     id_ind = 0
+            #     house_ind = 3
+
+            # IdRow = new[id_ind]
+            # for ele in IdRow:
+            #     if len(ele[0]) > 3: Id_xc, Id_yc = ele[1], ele[2]
+            # try: 
+            #     IDImg = cropped_image[max(Id_yc-14, 0):Id_yc+15, max(Id_xc-120, 0):Id_xc+120]
+            #     txt = [v for v in pytesseract.image_to_string(IDImg, config='--psm 6').strip().split() if len(v)>3]
+            #     voterIdNo = txt[0] if len(txt) > 0 else "" 
+            # except: pass
+
+            # # House No
+            # # for i, row in enumerate(new):
+            # #     for ele in row:
+            # #         if 'घर' in ele[0]:
+            # #             if len(row) > 3: T_name = ' '.join([v[0] for v in row[1:]])
+            # #             else:
+            # #                 houseImg = cropped_image[max(ele[2]-14, 0):ele[2]+14, 10:int(0.5*W)]
+            # #                 T_name = pytesseract.image_to_string(houseImg, lang='mar+eng', config='--psm 6').strip()
+            # #                 T_name = T_name.replace('घर', '')
+                             
+            # #             T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
+            # #             T_name = T_name.strip(strp_chars).strip()
+            # #             break
+            # #     if T_name != '': break
+            if T_name == '':
+                housetext, houseY= new[house_ind][0], new[house_ind][1]
+                if len(housetext)>40: T_name = housetext
+                else:
+                    houseImg = cropped_image[max(houseY-16, 0):houseY+16, 10:int(0.5*W)]
+                    # T_names, _, _, _, _, accu, _, _ = getting_textdata(houseImg, '--psm 6', 1, 0, lang='mar+eng', ths=20)
+                    # T_name = ' '.join([v for v in T_names])
+                    T_name = pytesseract.image_to_string(houseImg, lang = 'mar+eng', config='--psm 13').strip()
                     
                 if T_name != '':
-                    T_name = T_name.replace('घर', '')
-                    T_name = T_name.replace('क्रमाक', '').replace('क्रमांक', '').split(':')[-1]
+                    if ':' in T_name: T_name = T_name.split(':')[-1]
+                    elif ';' in T_name: T_name = T_name.split(';')[-1]
+                    elif 'क्रमांक' in T_name: T_name = T_name.split('क्रमांक')[-1]
+                    else: T_name = ' '.join(T_name.split[2:])
+                    
                     T_name = T_name.strip(strp_chars).strip()
+                    T_name = T_name.replace('a-', 'त-')
 
             results.append({'id':voterIdNo, 'name':voterName, 'father_name':fatherName, 'house_no':T_name, 'PageNumber':self.page_num})
-        return results
+        return results 
     def old_getFromDigital(self):
         
         results = self.process_page()
