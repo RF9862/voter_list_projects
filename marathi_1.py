@@ -14,6 +14,7 @@ load_dotenv()
 class do_marathi:
     def __init__(self, fullPath):
         self.full_path = fullPath
+        self.stopFlag = False
       
     def check_scan_or_digit(self):
         '''
@@ -511,7 +512,7 @@ class do_marathi:
                 else:
                     voterName = ' '.join(n_row.split()[2:])
                 if f_ind == 3:
-                    voterName += ' ' + ' '.join([v[0] for v in new[n_ind+1] if v[0] != 'नाव']).strip()
+                    voterName += ' ' + ' '.join([v[0] for v in new[n_ind+1] if v[0] != 'नाव' or v[0] != 'नांव']).strip()
             except: pass  
             try:
                 n_row = new[f_ind][0]
@@ -596,7 +597,7 @@ class do_marathi:
                     if ':' in T_name: T_name = T_name.split(':')[-1]
                     elif ';' in T_name: T_name = T_name.split(';')[-1]
                     elif 'क्रमांक' in T_name: T_name = T_name.split('क्रमांक')[-1]
-                    else: T_name = ' '.join(T_name.split[2:])
+                    else: T_name = ' '.join(T_name.split()[2:])
                     
                     T_name = T_name.strip(strp_chars).strip()
                     T_name = T_name.replace('a-', 'त-')
@@ -669,6 +670,7 @@ class do_marathi:
         # Split and convert pages to images
         socketio.emit('process', {'data': f"Spliting PDF into images...", 'username': username})
         pages = split_pages(self.full_path)
+        # pages = convert_document_to_images(self.full_path)
         # self.indexFromFile()
         if pages == "01":
             err = "PDF file is damaged"

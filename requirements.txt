@@ -12,6 +12,7 @@ requests
 python-dotenv
 certifi
 python-dateutil
+pdf2image
 #eventlet
 # tesseract: latest version
 # tesseract weight files: https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata
