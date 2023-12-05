@@ -2,9 +2,9 @@
 # This script defines the Document and Page classes to streamline the flow of information through the script.
 
 import numpy as np
-import re, os
+import re, os, fitz
 import pytesseract
-from helper import split_pages, subset, getting_textdata, getRectangle, getTextAndCoorFromPaddle
+from helper import split_pages, subset, getting_textdata, getRectangle, getRectFromYolo, getTextAndCoorFromPaddle
 from dotenv import load_dotenv
 import traceback
 
@@ -284,13 +284,15 @@ class do_marathi:
         except: pass
         # get part no
         tesseract_Path = os.getenv("TESSERACT_PATH")
-        for i, tex in enumerate(text):
-            if "भाग" in tex:
-                partImg = self.img[Cy_list[i]+30:Cy_list[i]+80, Cx_list[i]-50:Cx_list[i]+50]
-                pytesseract.pytesseract.tesseract_cmd = tesseract_Path
-                temp_text = pytesseract.image_to_string(partImg, lang='eng', config='--psm 6')   
-                final_json["part_number"] = re.findall('\d+', temp_text)[0]
-                break
+        try:
+            for i, tex in enumerate(text):
+                if "भाग" in tex:
+                    partImg = self.img[Cy_list[i]+30:Cy_list[i]+80, Cx_list[i]-50:Cx_list[i]+50]
+                    pytesseract.pytesseract.tesseract_cmd = tesseract_Path
+                    temp_text = pytesseract.image_to_string(partImg, lang='eng', config='--psm 6')   
+                    final_json["part_number"] = re.findall('\d+', temp_text)[0]
+                    break
+        except: pass
         town_check, tehsil_check, district_check, pin_check, address_check = True, True, True, True, True
         strp_chars = "|^#;:$`'-_=*\/‘¢[®°]."
         for i, tex in enumerate(text):
@@ -461,13 +463,16 @@ class do_marathi:
         for rect in rects:
             y,x,H,W = rect
             cropped_image = self.img[y:y+H, x:x+W]
-            Cy_list, Cx_list, text = getTextAndCoorFromPaddle(cropped_image, lang='mar')
-            Cy_list, Cx_list, text = list(Cy_list), list(Cx_list), list(text)
-            CyCpy = Cy_list.copy()
-            CyUnique, _ = subset(np.sort(CyCpy), 15, 'medi')
+            try:
+                Cy_list, Cx_list, text = getTextAndCoorFromPaddle(cropped_image, lang='mar')
+                Cy_list, Cx_list, text = list(Cy_list), list(Cx_list), list(text)
+                CyCpy = Cy_list.copy()
+                CyUnique, _ = subset(np.sort(CyCpy), 15, 'medi')
 
-            Cy_list = [CyUnique[np.argmin(abs(np.array(CyUnique)-v))] for v in Cy_list]
-            yc, xc, text = zip(*sorted(zip(Cy_list, Cx_list, text)))
+                Cy_list = [CyUnique[np.argmin(abs(np.array(CyUnique)-v))] for v in Cy_list]
+                yc, xc, text = zip(*sorted(zip(Cy_list, Cx_list, text)))
+            except: 
+                return results
             new = []
             try: ref_y = yc[0]
             except: pass
@@ -660,7 +665,9 @@ class do_marathi:
             else:
                 return self.get_head_page_scanned_paddle()
         else:
-            rects = getRectangle(self.img) # get every elements region
+            if checkDigit: rects = getRectangle(self.img, checkDigit) # get every elements region
+            else: rects = getRectFromYolo(self.img)
+            
             return self.getFromImgByPaddle(rects)
 
     def parse_doc(self, socketio, username):
@@ -669,39 +676,36 @@ class do_marathi:
         '''
         # Split and convert pages to images
         socketio.emit('process', {'data': f"Spliting PDF into images...", 'username': username})
-        pages = split_pages(self.full_path)
-        # pages = convert_document_to_images(self.full_path)
-        # self.indexFromFile()
-        if pages == "01":
-            err = "PDF file is damaged"
-        else:
-            self.pages, self.digit_doc = pages
+        result_1 = {}
+        result_2 = []        
+        self.digit_doc = fitz.open(self.full_path)
+        past_page_ind, step = 0, 100
+        for i in range(len(self.digit_doc)//step+1):
+            next_page_ind = min(step*(i+1), len(self.digit_doc))
+            pages = split_pages(self.digit_doc, past_page_ind, next_page_ind)
+            past_page_ind = next_page_ind
+            self.pages = pages
         # entity = ['No and Name of Reservation Status', 'Part No', 'Year', 'Main Town', 'Tehsil', 'District', 'Pin code', 'Address of Polling Station']
         # entity = ['ASSEMBLY CONSTITUENCY NUMBER', 'ASSEMBLY CONSTITUENCY NAME', 'Part No', 'Year', 'Main Town', 'Tehsil', 'District', 'Pin code', 'Address of Polling Station']
-        result_1 = {}
-        result_2 = []
+
         # for enti in entity:
         #     result_1[enti.upper()] = 'N/A'        
-        for idx, img in enumerate(self.pages):
-            try:
-                # if idx < 6:
-                    if idx == 1: continue
-                    print(f"Reading page {idx + 1} out of {len(self.pages)}")
-                    self.digit_page = self.digit_doc[idx]
-                    self.page_num = idx + 1
-                    self.img = img
-                    self.digit_cen_value = []
-                    self.digit_value = []                      
-                    result = self.parse_page()
-                    
-                    if idx == 0: result_1 = result
-                    else: result_2 += result
-                    socketio.emit('process', {'data': f"Processing {str(self.page_num)} of {len(self.digit_doc)}", 'username': username})  
-                
-            except Exception as e:
-                print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")
-                
-                # print("     Error=%s,\n     File=%s,\n     L=%s\n" % (str(e), traceback.extract_tb(exc_tb)[-1][0], traceback.extract_tb(exc_tb)[-1][1]))
+            for idx, img in enumerate(self.pages):
+                try:
+                    # if idx < 6:
+                        if idx == 1 and i == 0: continue
+                        self.digit_page = self.digit_doc[idx+i*step]
+                        self.page_num = idx + 1 + i*step
+                        print(f"Reading page {self.page_num} out of {len(self.digit_doc)}")
+                        self.img = img
+                        self.digit_cen_value = []
+                        self.digit_value = []                      
+                        result = self.parse_page()
+                        if idx == 0 and i == 0: result_1 = result
+                        else: result_2 += result
+                        socketio.emit('process', {'data': f"Processed {str(self.page_num)} of {len(self.digit_doc)}", 'username': username})                
+                except Exception as e:
+                    print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")
         print(f"    Completed parsing {self.full_path} with no errors, ...........OK")
         result_1['DETAILS'] = result_2
         return result_1

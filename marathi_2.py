@@ -2,7 +2,7 @@
 # This script defines the Document and Page classes to streamline the flow of information through the script.
 
 import numpy as np
-import re, os
+import re, os, fitz
 import pytesseract
 from helper import split_pages, subset, getTextAndCoorFromPaddle
 from dotenv import load_dotenv
@@ -392,34 +392,32 @@ class do_marathi_format2:
         '''
         # Split and convert pages to images
         socketio.emit('process', {'data': f"Spliting PDF into images...", 'username': username})
-        pages = split_pages(self.full_path)
-        # self.indexFromFile()
-        if pages == "01": err = "PDF file is damaged"
-        else: self.pages, self.digit_doc = pages
-        # entity = ['No and Name of Reservation Status', 'Part No', 'Year', 'Main Town', 'Tehsil', 'District', 'Pin code', 'Address of Polling Station']
-        # entity = ['ASSEMBLY CONSTITUENCY NUMBER', 'ASSEMBLY CONSTITUENCY NAME', 'Part No', 'Year', 'Main Town', 'Tehsil', 'District', 'Pin code', 'Address of Polling Station']
         result_1 = {}
-        result_2 = []
-        # for enti in entity:
-        #     result_1[enti.upper()] = 'N/A'        
-        for idx, img in enumerate(self.pages):
-            try:
-                # if idx < 6:
-                    if idx == 1: continue
-                    print(f"Reading page {idx + 1} out of {len(self.pages)}")
-                    self.digit_page = self.digit_doc[idx]
-                    self.page_num = idx + 1
-                    self.img = img
-                    self.digit_cen_value = []
-                    self.digit_value = []                      
-                    result = self.parse_page()
-                    
-                    if idx == 0: result_1 = result
-                    else: result_2 += result
-                    socketio.emit('process', {'data': f"Processing {str(self.page_num)} of {len(self.digit_doc)}", 'username': username})  
-                
-            except Exception as e:
-                print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")
+        result_2 = []        
+        self.digit_doc = fitz.open(self.full_path)
+        past_page_ind, step = 0, 100
+        for i in range(len(self.digit_doc)//step+1):
+            next_page_ind = min(step*(i+1), len(self.digit_doc))
+            pages = split_pages(self.digit_doc, past_page_ind, next_page_ind)
+            past_page_ind = next_page_ind
+            self.pages = pages        
+            for idx, img in enumerate(self.pages):
+                try:
+                    # if idx < 6:
+                        if idx == 1 and i == 0: continue
+                        self.digit_page = self.digit_doc[idx+i*step]
+                        self.page_num = idx + 1 + i*step
+                        print(f"Reading page {self.page_num} out of {len(self.digit_doc)}")
+                        self.img = img
+                        self.digit_cen_value = []
+                        self.digit_value = []                      
+                        result = self.parse_page()
+                        if idx == 0 and i == 0: result_1 = result
+                        else: result_2 += result
+                        socketio.emit('process', {'data': f"Processed {str(self.page_num)} of {len(self.digit_doc)}", 'username': username})                
+                except Exception as e:
+                    print(f"    Page {str(idx+1)} of {self.full_path} ran into warning(some errors) in while parsing.")
         print(f"    Completed parsing {self.full_path} with no errors, ...........OK")
         result_1['DETAILS'] = result_2
         return result_1
+

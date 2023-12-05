@@ -5,6 +5,7 @@ import fitz
 import pytesseract
 from pytesseract import Output
 import os
+from yolo_usage.assist import getTotalValue
 from paddleocr import PaddleOCR
 from dotenv import load_dotenv
 load_dotenv()
@@ -12,6 +13,7 @@ load_dotenv()
 Pocr = PaddleOCR(use_angle_cls=True)
 
 tesseract_Path = os.getenv("TESSERACT_PATH")
+
 def subset(set, lim, loc):
         '''
         set: one or multi list or array, lim: size, loc:location(small, medi, large)
@@ -60,7 +62,7 @@ def subset(set, lim, loc):
 
         return v_coor_y1, index_ 
 
-def split_pages(full_path):
+def split_pages(digit_doc, past_k, next_k):
     '''
     1. Splits the input pdf into pages
     2. Writes a temporary image for each page to a byte buffer
@@ -71,33 +73,32 @@ def split_pages(full_path):
     PyMuPDF's get_pixmap() has a default output of 96dpi, while the desired
     resolution is 300dpi, hence the zoom factor of 300/96 = 3.125 ~ 3.
     '''
-    if (full_path.split('.')[-1]).lower() == 'pdf':  
-        print("Splitting PDF into pages")
-        digit_doc = fitz.open(full_path)
-        pages = []
-        try:
-            zoom_factor = 3
-            for i in range(len(digit_doc)):
-                # Load page and get pixmap
-                page = digit_doc.load_page(i)
-                pixmap = page.get_pixmap(matrix=fitz.Matrix(zoom_factor, zoom_factor))
+    print("Splitting PDF into pages")
+    pages = []
+    try:
+        zoom_factor = 3
+        for i in range(past_k, next_k):
+            # Load page and get pixmap
+            page = digit_doc.load_page(i)
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(zoom_factor, zoom_factor))
 
-                # Initialize bytes buffer and write PNG image to buffer
-                buffer = BytesIO()
-                buffer.write(pixmap.tobytes())
-                buffer.seek(0)
+            # Initialize bytes buffer and write PNG image to buffer
+            buffer = BytesIO()
+            buffer.write(pixmap.tobytes())
+            buffer.seek(0)
 
-                # Load image from buffer as array, append to pages, close buffer
-                img_array = np.asarray(bytearray(buffer.read()), dtype=np.uint8)
-                page_img = cv2.imdecode(img_array, 1)
-                pages.append(page_img)
-                buffer.close()
-        except:
-            pass
+            # Load image from buffer as array, append to pages, close buffer
+            img_array = np.asarray(bytearray(buffer.read()), dtype=np.uint8)
+            page_img = cv2.imdecode(img_array, 1)
+            pages.append(page_img)
+            # cv2.imwrite(f'imgs/{i}.jpg', page_img)
+            buffer.close()
+    except:
+        pass
     if len(pages) == 0:
         val = "01"
     else:
-        val = [pages, digit_doc]
+        val = pages
     return val
 
 def approximate(li, limit):
@@ -181,7 +182,7 @@ def strengthBorder(img):
     H, W = img.shape[0:2]
     img = cv2.dilate(img, np.ones((1,10)), iterations=1)     
     kernel_hor = cv2.getStructuringElement(cv2.MORPH_RECT, (int(W/5), 1)) # vertical
-    kernel_ver = cv2.getStructuringElement(cv2.MORPH_RECT, (1, int(H/5))) # vertical
+    kernel_ver = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 250)) # vertical
     hor_temp = cv2.erode(img, kernel_hor, iterations=1)     
     ver_temp = cv2.erode(img, kernel_ver, iterations=1)   
     hor_temp = cv2.dilate(hor_temp, np.ones((1,W)), iterations=2)     
@@ -190,12 +191,14 @@ def strengthBorder(img):
     _, img_vh = cv2.threshold(img_vh, 50, 255, cv2.THRESH_BINARY) 
     img_vh = border_set(img_vh, [0, W, 0, H], 20, 0)
     return img_vh   
-def getRectangle(im):
+def getRectangle(im, checkDigit):
     img = im.copy()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     imgH, imgW = gray.shape
-    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-    # thresh = strengthBorder(thresh)
+    if checkDigit: thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    else:
+        thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY_INV)[1]
+        thresh = strengthBorder(thresh)
     contours,hierarchy = cv2.findContours(thresh, 1, 2)
     # print("Number of contours detected:", len(contours))
     rects = []
@@ -218,6 +221,32 @@ def getRectangle(im):
                 # if not checkDigit: rect[3] = 400
                 new_rects.append(rect)
     return new_rects
+def getRectFromYolo(img):
+    weights = 'weights/epoch140_voterlist.pt'
+    boxes = getTotalValue(weights=weights, conf_thres=0.3, source=img)
+    boxes = np.array(boxes)
+    X0, Y0, X1, Y1 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    uni_X0, _ = subset(np.sort(X0), 20, 'medi')
+    uni_Y0, _ = subset(np.sort(Y0), 20, 'medi')
+    uni_X1, _ = subset(np.sort(X1), 20, 'medi')
+    uni_Y1, _ = subset(np.sort(Y1), 20, 'medi')
+    uni_X0, uni_Y0, uni_X1, uni_Y1 = np.array(uni_X0), np.array(uni_Y0), np.array(uni_X1), np.array(uni_Y1)
+    new_boxes = []
+    for box in boxes:
+
+        y0 = uni_Y0[np.argmin(abs(uni_Y0 - box[1]))] # y0
+        x0 = uni_X0[np.argmin(abs(uni_X0 - box[0]))] # x0
+        h = uni_Y1[np.argmin(abs(uni_Y1 - box[3]))] - y0 # h
+        w = uni_X1[np.argmin(abs(uni_X1 - box[2]))] - x0 # w
+
+        new_boxes.append([y0, x0, h, w])
+    # im0s = img.copy()
+    # for bo in new_boxes:
+    #     x0, y0, x1, y1 = bo[1], bo[0], bo[1]+bo[3], bo[0]+bo[2]
+    #     im0s = cv2.rectangle(img, (x0, y0), (x1, y1), (255, 0,0), 3) 
+    
+    return new_boxes
+
 def getTextAndCoorFromPaddle(img, lang='eng'):
     strp_chars = "|^#;$`'-_\/*‘ \n"
     Boxes = Pocr.ocr(img,rec=False)[0]
@@ -244,4 +273,3 @@ def getTextAndCoorFromPaddle(img, lang='eng'):
         text = text.strip(strp_chars)
         all_text.append(text)
     return Cy_list, Cx_list, all_text
-        

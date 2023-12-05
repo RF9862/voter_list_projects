@@ -4,5 +4,7 @@ dist
 data
 venv
 upload
+flask_session
+weights
 
 
