@@ -395,9 +395,9 @@ class do_marathi_format2:
         result_1 = {}
         result_2 = []        
         self.digit_doc = fitz.open(self.full_path)
-        past_page_ind, step = 0, 100
-        for i in range(len(self.digit_doc)//step+1):
-            next_page_ind = min(step*(i+1), len(self.digit_doc))
+        past_page_ind, page_batch = 0, 50
+        for i in range(len(self.digit_doc)//page_batch+1):
+            next_page_ind = min(page_batch*(i+1), len(self.digit_doc))
             pages = split_pages(self.digit_doc, past_page_ind, next_page_ind)
             past_page_ind = next_page_ind
             self.pages = pages        
@@ -405,8 +405,8 @@ class do_marathi_format2:
                 try:
                     # if idx < 6:
                         if idx == 1 and i == 0: continue
-                        self.digit_page = self.digit_doc[idx+i*step]
-                        self.page_num = idx + 1 + i*step
+                        self.digit_page = self.digit_doc[idx+i*page_batch]
+                        self.page_num = idx + 1 + i*page_batch
                         print(f"Reading page {self.page_num} out of {len(self.digit_doc)}")
                         self.img = img
                         self.digit_cen_value = []

@@ -8,6 +8,7 @@ import os
 from yolo_usage.assist import getTotalValue
 from paddleocr import PaddleOCR
 from dotenv import load_dotenv
+
 load_dotenv()
 
 Pocr = PaddleOCR(use_angle_cls=True)

@@ -1,11 +1,10 @@
 
 import os
 import platform
-import sys
+import sys, gc
 from pathlib import Path
 import torch
 import time
-from keras import backend as K
 
 from yolo_usage.models.common import DetectMultiBackend
 from yolo_usage.utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
@@ -14,11 +13,11 @@ from yolo_usage.utils.general import (LOGGER, Profile, check_file, check_img_siz
 from yolo_usage.utils.plots import Annotator, colors, save_one_box
 from yolo_usage.utils.torch_utils import select_device, smart_inference_mode
 import cv2
-from keras.models import load_model
 import numpy as np
 from yolo_usage.utils.augmentations import letterbox
-
-@smart_inference_mode()
+from memory_profiler import profile
+@profile
+# @smart_inference_mode()
 def getTotalValue(
         weights='best.pt',  # model path or triton URL
         source=None,  # file/dir/URL/glob/screen/0(webcam)
@@ -91,14 +90,10 @@ def getTotalValue(
     # Process predictions
     for i, det in enumerate(pred):  # per image
         seen += 1
-        im0 = im0s.copy()
-        
-
         # save_path = str(save_dir / p.name)  # im.jpg
-        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
         if len(det):
             # Rescale boxes from img_size to im0 size
-            det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
+            det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0s.shape).round()
 
             # Print results
             for c in det[:, 5].unique():
@@ -109,7 +104,8 @@ def getTotalValue(
                 box.append([int(v) for v in xyxy])
                 con.append(float(conf))
                 labels.append(str(int(cls)))
-
+    del model, im0s, im
+    gc.collect()
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
 
