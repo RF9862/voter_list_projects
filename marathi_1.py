@@ -503,7 +503,7 @@ class do_marathi:
             try:
                 Id_yc = new[id_ind][1]
                 IDImg = cropped_image[max(Id_yc-14, 0):Id_yc+15, 130:W-7]
-                txt = [v for v in pytesseract.image_to_string(IDImg, config='--psm 6').strip().split() if len(v)>3]
+                txt = [v for v in pytesseract.image_to_string(IDImg, config='--psm 6').strip().split() if len(v)>2]
                 voterIdNo = txt[0] if len(txt) > 0 else "" 
             except: pass  
             try:
