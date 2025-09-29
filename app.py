@@ -13,6 +13,7 @@ from post import post_processing
 from flask_socketio import SocketIO, emit
 from flask_session import Session
 
+
 async_mode = None
 app = Flask(__name__, template_folder='templates')
 app.config["SESSION_PERMANENT"] = False
